@@ -76,7 +76,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     await app.ApplyMigrationsAsync();
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
