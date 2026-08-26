@@ -20,11 +20,11 @@ public sealed class KycController(KycSecurityService kycSecurityService) : Contr
 
     [HttpPost("customers/{customerId:guid}/documents")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<IActionResult> Upload(Guid customerId, [FromForm] string documentType, [FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> Upload(Guid customerId, [FromForm] KycUploadRequest request, CancellationToken cancellationToken)
     {
         RequirePermission("Kyc.Submit");
-        await using var stream = file.OpenReadStream();
-        var kycCaseId = await kycSecurityService.UploadAsync(customerId, ActorId(), documentType, file.FileName, file.ContentType, stream, file.Length, cancellationToken);
+        await using var stream = request.File.OpenReadStream();
+        var kycCaseId = await kycSecurityService.UploadAsync(customerId, ActorId(), request.DocumentType, request.File.FileName, request.File.ContentType, stream, request.File.Length, cancellationToken);
         return Accepted(new { kycCaseId, status = "PendingReview" });
     }
 
@@ -38,6 +38,12 @@ public sealed class KycController(KycSecurityService kycSecurityService) : Contr
 
     private Guid ActorId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : throw new UnauthorizedAccessException("The access token does not contain a valid user identifier.");
     private void RequirePermission(string permission) { if (!User.Claims.Any(claim => claim.Type == "permission" && claim.Value == permission)) throw new UnauthorizedAccessException("You do not have the required KYC permission."); }
+}
+
+public sealed class KycUploadRequest
+{
+    public required string DocumentType { get; init; }
+    public required IFormFile File { get; init; }
 }
 
 public sealed record KycDecisionRequest(bool Verify, string? RejectionReason);
