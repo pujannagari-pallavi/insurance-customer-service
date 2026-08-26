@@ -1,0 +1,43 @@
+using System.Security.Claims;
+using CustomerService.Application.Exceptions;
+using CustomerService.Infrastructure.Kyc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CustomerService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/kyc")]
+public sealed class KycController(KycSecurityService kycSecurityService) : ControllerBase
+{
+    [HttpGet("cases/pending")]
+    public async Task<IActionResult> GetPendingCases(CancellationToken cancellationToken)
+    {
+        RequirePermission("Kyc.Verify");
+        return Ok(await kycSecurityService.GetPendingCasesAsync(cancellationToken));
+    }
+
+    [HttpPost("customers/{customerId:guid}/documents")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> Upload(Guid customerId, [FromForm] string documentType, [FromForm] IFormFile file, CancellationToken cancellationToken)
+    {
+        RequirePermission("Kyc.Submit");
+        await using var stream = file.OpenReadStream();
+        var kycCaseId = await kycSecurityService.UploadAsync(customerId, ActorId(), documentType, file.FileName, file.ContentType, stream, file.Length, cancellationToken);
+        return Accepted(new { kycCaseId, status = "PendingReview" });
+    }
+
+    [HttpPost("cases/{kycCaseId:guid}/decision")]
+    public async Task<IActionResult> Decide(Guid kycCaseId, [FromBody] KycDecisionRequest request, CancellationToken cancellationToken)
+    {
+        RequirePermission("Kyc.Verify");
+        await kycSecurityService.DecideAsync(kycCaseId, ActorId(), request.Verify, request.RejectionReason, cancellationToken);
+        return NoContent();
+    }
+
+    private Guid ActorId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : throw new UnauthorizedAccessException("The access token does not contain a valid user identifier.");
+    private void RequirePermission(string permission) { if (!User.Claims.Any(claim => claim.Type == "permission" && claim.Value == permission)) throw new UnauthorizedAccessException("You do not have the required KYC permission."); }
+}
+
+public sealed record KycDecisionRequest(bool Verify, string? RejectionReason);
