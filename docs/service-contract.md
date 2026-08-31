@@ -22,6 +22,10 @@ Validate Identity Service JWTs locally with issuer `InsurancePlatform.Identity` 
 | `Customer.Read` | Read customer records |
 | `Customer.Write` | Create or update customer records |
 
+## KYC Upload Configuration
+
+KYC document uploads are scanned before encryption and storage by default. Demo deployments without a malware scanner can explicitly set `Kyc__SkipMalwareScan=true`. This bypass is not suitable for production or real identity documents. Encrypted object storage and `Kyc__EncryptionKeyBase64` remain required in every environment.
+
 ## Events
 
 Customer Service consumes `identity.user.registered.v1` and reserves these events for Policy Service and future consumers:

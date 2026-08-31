@@ -1,6 +1,7 @@
 using CustomerService.Application.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Sockets;
 
 namespace CustomerService.API.Infrastructure;
 
@@ -8,7 +9,10 @@ public sealed class CustomerExceptionHandler(ILogger<CustomerExceptionHandler> l
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        if (exception is not ValidationException and not NotFoundException and not UnauthorizedAccessException)
+        var isKycInfrastructureFailure = exception is SocketException or HttpRequestException
+            || exception.Message.StartsWith("KYC ", StringComparison.Ordinal);
+
+        if (exception is not ValidationException and not NotFoundException and not UnauthorizedAccessException && !isKycInfrastructureFailure)
         {
             return false;
         }
@@ -21,15 +25,19 @@ public sealed class CustomerExceptionHandler(ILogger<CustomerExceptionHandler> l
             {
                 ValidationException => StatusCodes.Status400BadRequest,
                 NotFoundException => StatusCodes.Status404NotFound,
+                _ when isKycInfrastructureFailure => StatusCodes.Status503ServiceUnavailable,
                 _ => StatusCodes.Status403Forbidden
             },
             Title = exception switch
             {
                 ValidationException => "Validation failed.",
                 NotFoundException => "Resource not found.",
+                _ when isKycInfrastructureFailure => "KYC upload temporarily unavailable.",
                 _ => "Access denied."
             },
-            Detail = exception.Message
+            Detail = isKycInfrastructureFailure
+                ? "KYC document scanning or secure storage is not available. Please try again later."
+                : exception.Message
         };
 
         httpContext.Response.StatusCode = problemDetails.Status.Value;

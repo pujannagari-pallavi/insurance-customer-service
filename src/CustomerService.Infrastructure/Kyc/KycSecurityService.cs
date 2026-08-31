@@ -27,7 +27,10 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
         using var buffer = new MemoryStream();
         await content.CopyToAsync(buffer, cancellationToken);
         var plaintext = buffer.ToArray();
-        await ScanAsync(plaintext, cancellationToken);
+        if (!bool.TryParse(configuration["Kyc:SkipMalwareScan"], out var skipMalwareScan) || !skipMalwareScan)
+        {
+            await ScanAsync(plaintext, cancellationToken);
+        }
 
         var fingerprint = Convert.ToHexString(SHA256.HashData(plaintext));
         if (await dbContext.KycDocuments.AnyAsync(item => item.Fingerprint == fingerprint, cancellationToken))
