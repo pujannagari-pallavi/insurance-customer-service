@@ -18,6 +18,14 @@ public sealed class KycController(KycSecurityService kycSecurityService) : Contr
         return Ok(await kycSecurityService.GetPendingCasesAsync(cancellationToken));
     }
 
+    [HttpGet("cases/{kycCaseId:guid}/document")]
+    public async Task<IActionResult> GetDocument(Guid kycCaseId, CancellationToken cancellationToken)
+    {
+        RequirePermission("Kyc.Verify");
+        var document = await kycSecurityService.GetDocumentAsync(kycCaseId, cancellationToken);
+        return File(document.Content, document.ContentType, enableRangeProcessing: true);
+    }
+
     [HttpPost("customers/{customerId:guid}/documents")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> Upload(Guid customerId, [FromForm] KycUploadRequest request, CancellationToken cancellationToken)

@@ -28,6 +28,8 @@ KYC document uploads are scanned before encryption and storage by default. Demo 
 
 Set `Kyc__Storage__Provider=Database` to store encrypted document bytes in the Customer Service PostgreSQL database. This avoids a separate storage account for small demo workloads. In this mode, only `Kyc__EncryptionKeyBase64` is required; storage endpoint credentials are not used. The default provider remains object storage, which requires `Kyc__Storage__Endpoint`, `Kyc__Storage__AccessKey`, and `Kyc__Storage__SecretKey`.
 
+Users with `Kyc.Verify` can view a database-stored document through `GET /api/kyc/cases/{kycCaseId}/document`. The service decrypts the document only in memory and streams it with its original content type.
+
 ## Events
 
 Customer Service consumes `identity.user.registered.v1` and reserves these events for Policy Service and future consumers:

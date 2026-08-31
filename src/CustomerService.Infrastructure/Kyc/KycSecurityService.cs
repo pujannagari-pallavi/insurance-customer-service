@@ -78,6 +78,24 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<KycDocumentContent> GetDocumentAsync(Guid kycCaseId, CancellationToken cancellationToken)
+    {
+        var document = await dbContext.KycDocuments.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.KycCaseId == kycCaseId, cancellationToken)
+            ?? throw new NotFoundException("KYC document not found.");
+
+        if (document.EncryptedContent is null)
+        {
+            throw new NotFoundException("This KYC document is not stored in the database.");
+        }
+
+        var plaintext = new byte[document.EncryptedContent.Length];
+        using var cipher = new AesGcm(GetEncryptionKey(), document.AuthenticationTag.Length);
+        cipher.Decrypt(document.Nonce, document.EncryptedContent, document.AuthenticationTag, plaintext);
+
+        return new KycDocumentContent(plaintext, document.ContentType);
+    }
+
     public Task<IReadOnlyList<KycCaseSummary>> GetPendingCasesAsync(CancellationToken cancellationToken) =>
         (from kycCase in dbContext.KycCases.AsNoTracking()
          join customer in dbContext.Customers.AsNoTracking() on kycCase.CustomerId equals customer.Id
@@ -149,3 +167,5 @@ public sealed record KycCaseSummary(
     long SizeBytes,
     DateTime SubmittedAtUtc,
     int RiskScore);
+
+public sealed record KycDocumentContent(byte[] Content, string ContentType);
