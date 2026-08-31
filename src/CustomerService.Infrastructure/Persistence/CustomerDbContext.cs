@@ -70,6 +70,7 @@ public sealed class CustomerDbContext(DbContextOptions<CustomerDbContext> option
             builder.Property(document => document.ObjectKey).HasMaxLength(512).IsRequired();
             builder.Property(document => document.ContentType).HasMaxLength(100).IsRequired();
             builder.Property(document => document.Fingerprint).HasMaxLength(64).IsRequired();
+            builder.Property(document => document.EncryptedContent).HasColumnType("bytea");
             builder.HasIndex(document => document.Fingerprint).IsUnique();
             builder.HasOne<KycCase>().WithMany().HasForeignKey(document => document.KycCaseId).OnDelete(DeleteBehavior.Cascade);
         });

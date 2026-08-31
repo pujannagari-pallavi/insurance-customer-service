@@ -4,7 +4,7 @@ public sealed class KycDocument
 {
     private KycDocument() { }
 
-    public KycDocument(Guid id, Guid kycCaseId, string documentType, string objectKey, string contentType, long length, string fingerprint, byte[] nonce, byte[] tag)
+    public KycDocument(Guid id, Guid kycCaseId, string documentType, string objectKey, string contentType, long length, string fingerprint, byte[] nonce, byte[] tag, byte[]? encryptedContent = null)
     {
         Id = id;
         KycCaseId = kycCaseId;
@@ -15,6 +15,7 @@ public sealed class KycDocument
         Fingerprint = fingerprint;
         Nonce = nonce;
         AuthenticationTag = tag;
+        EncryptedContent = encryptedContent;
         UploadedAtUtc = DateTime.UtcNow;
     }
 
@@ -27,5 +28,6 @@ public sealed class KycDocument
     public string Fingerprint { get; private set; } = string.Empty;
     public byte[] Nonce { get; private set; } = [];
     public byte[] AuthenticationTag { get; private set; } = [];
+    public byte[]? EncryptedContent { get; private set; }
     public DateTime UploadedAtUtc { get; private set; }
 }

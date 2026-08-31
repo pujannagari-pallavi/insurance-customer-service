@@ -42,10 +42,26 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
         var tag = new byte[16];
         using (var cipher = new AesGcm(GetEncryptionKey(), tag.Length)) cipher.Encrypt(nonce, plaintext, ciphertext, tag);
 
-        var objectKey = $"{customerId:N}/{kycCase.Id:N}/{Guid.NewGuid():N}";
-        await StoreAsync(objectKey, contentType, ciphertext, cancellationToken);
+        var useDatabaseStorage = string.Equals(configuration["Kyc:Storage:Provider"], "Database", StringComparison.OrdinalIgnoreCase);
+        var objectKey = useDatabaseStorage
+            ? $"database://{kycCase.Id:N}"
+            : $"{customerId:N}/{kycCase.Id:N}/{Guid.NewGuid():N}";
+        if (!useDatabaseStorage)
+        {
+            await StoreAsync(objectKey, contentType, ciphertext, cancellationToken);
+        }
         dbContext.KycCases.Add(kycCase);
-        dbContext.KycDocuments.Add(new KycDocument(Guid.NewGuid(), kycCase.Id, documentType, objectKey, contentType, length, fingerprint, nonce, tag));
+        dbContext.KycDocuments.Add(new KycDocument(
+            Guid.NewGuid(),
+            kycCase.Id,
+            documentType,
+            objectKey,
+            contentType,
+            length,
+            fingerprint,
+            nonce,
+            tag,
+            useDatabaseStorage ? ciphertext : null));
         dbContext.KycAuditEvents.Add(new KycAuditEvent(Guid.NewGuid(), kycCase.Id, "document.submitted", actorId, $"Submitted {documentType} document."));
         await dbContext.SaveChangesAsync(cancellationToken);
         return kycCase.Id;

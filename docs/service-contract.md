@@ -24,7 +24,9 @@ Validate Identity Service JWTs locally with issuer `InsurancePlatform.Identity` 
 
 ## KYC Upload Configuration
 
-KYC document uploads are scanned before encryption and storage by default. Demo deployments without a malware scanner can explicitly set `Kyc__SkipMalwareScan=true`. This bypass is not suitable for production or real identity documents. Encrypted object storage and `Kyc__EncryptionKeyBase64` remain required in every environment.
+KYC document uploads are scanned before encryption and storage by default. Demo deployments without a malware scanner can explicitly set `Kyc__SkipMalwareScan=true`. This bypass is not suitable for production or real identity documents.
+
+Set `Kyc__Storage__Provider=Database` to store encrypted document bytes in the Customer Service PostgreSQL database. This avoids a separate storage account for small demo workloads. In this mode, only `Kyc__EncryptionKeyBase64` is required; storage endpoint credentials are not used. The default provider remains object storage, which requires `Kyc__Storage__Endpoint`, `Kyc__Storage__AccessKey`, and `Kyc__Storage__SecretKey`.
 
 ## Events
 
