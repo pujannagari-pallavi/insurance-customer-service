@@ -1,4 +1,5 @@
 using CustomerService.Application.Contracts.Customers;
+using CustomerService.Application.Exceptions;
 using CustomerService.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,11 +26,18 @@ public sealed class CustomersController(
 
     [HttpGet("me")]
     [ProducesResponseType<CustomerResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> GetCurrent(CancellationToken cancellationToken)
     {
-        var response = await getCustomerService.GetByIdentityUserIdAsync(GetActorId(), cancellationToken);
-        return Ok(response);
+        try
+        {
+            var response = await getCustomerService.GetByIdentityUserIdAsync(GetActorId(), cancellationToken);
+            return Ok(response);
+        }
+        catch (NotFoundException)
+        {
+            return NoContent();
+        }
     }
 
     [HttpGet("{customerId:guid}")]
