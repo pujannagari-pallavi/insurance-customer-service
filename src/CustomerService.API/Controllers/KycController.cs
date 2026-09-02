@@ -36,6 +36,13 @@ public sealed class KycController(KycSecurityService kycSecurityService) : Contr
         return Accepted(new { kycCaseId, status = "PendingReview" });
     }
 
+    [HttpGet("customers/{customerId:guid}/submission")]
+    public async Task<IActionResult> GetLatestSubmission(Guid customerId, CancellationToken cancellationToken)
+    {
+        var submission = await kycSecurityService.GetLatestSubmissionAsync(customerId, ActorId(), cancellationToken);
+        return submission is null ? NoContent() : Ok(submission);
+    }
+
     [HttpPost("cases/{kycCaseId:guid}/decision")]
     public async Task<IActionResult> Decide(Guid kycCaseId, [FromBody] KycDecisionRequest request, CancellationToken cancellationToken)
     {

@@ -78,6 +78,24 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<KycSubmissionStatus?> GetLatestSubmissionAsync(Guid customerId, Guid actorId, CancellationToken cancellationToken)
+    {
+        var ownsCustomer = await dbContext.Customers.AnyAsync(
+            customer => customer.Id == customerId && customer.IdentityUserId == actorId,
+            cancellationToken);
+        if (!ownsCustomer) throw new UnauthorizedAccessException("You do not have access to this customer's KYC status.");
+
+        return await dbContext.KycCases.AsNoTracking()
+            .Where(kycCase => kycCase.CustomerId == customerId)
+            .OrderByDescending(kycCase => kycCase.SubmittedAtUtc)
+            .Select(kycCase => new KycSubmissionStatus(
+                kycCase.Id,
+                kycCase.Status.ToString(),
+                kycCase.SubmittedAtUtc,
+                kycCase.RejectionReason))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<KycDocumentContent> GetDocumentAsync(Guid kycCaseId, CancellationToken cancellationToken)
     {
         var document = await dbContext.KycDocuments.AsNoTracking()
@@ -167,5 +185,7 @@ public sealed record KycCaseSummary(
     long SizeBytes,
     DateTime SubmittedAtUtc,
     int RiskScore);
+
+public sealed record KycSubmissionStatus(Guid CaseId, string Status, DateTime SubmittedAtUtc, string? RejectionReason);
 
 public sealed record KycDocumentContent(byte[] Content, string ContentType);
