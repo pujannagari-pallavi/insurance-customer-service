@@ -133,6 +133,26 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
         .ToListAsync(cancellationToken)
         .ContinueWith(task => (IReadOnlyList<KycCaseSummary>)task.Result, cancellationToken);
 
+    public Task<IReadOnlyList<KycHistoryEntry>> GetHistoryAsync(CancellationToken cancellationToken) =>
+        (from kycCase in dbContext.KycCases.AsNoTracking()
+         join customer in dbContext.Customers.AsNoTracking() on kycCase.CustomerId equals customer.Id
+         join auditEvent in dbContext.KycAuditEvents.AsNoTracking() on kycCase.Id equals auditEvent.KycCaseId
+         orderby auditEvent.OccurredAtUtc descending
+         select new KycHistoryEntry(
+             kycCase.Id,
+             kycCase.CustomerId,
+             customer.FirstName + " " + customer.LastName,
+             customer.Email,
+             kycCase.Status.ToString(),
+             kycCase.SubmittedAtUtc,
+             kycCase.ReviewedAtUtc,
+             kycCase.RejectionReason,
+             auditEvent.EventType,
+             auditEvent.Details,
+             auditEvent.OccurredAtUtc))
+        .ToListAsync(cancellationToken)
+        .ContinueWith(task => (IReadOnlyList<KycHistoryEntry>)task.Result, cancellationToken);
+
     private byte[] GetEncryptionKey()
     {
         try
@@ -185,6 +205,19 @@ public sealed record KycCaseSummary(
     long SizeBytes,
     DateTime SubmittedAtUtc,
     int RiskScore);
+
+public sealed record KycHistoryEntry(
+    Guid CaseId,
+    Guid CustomerId,
+    string CustomerName,
+    string CustomerEmail,
+    string Status,
+    DateTime SubmittedAtUtc,
+    DateTime? ReviewedAtUtc,
+    string? RejectionReason,
+    string EventType,
+    string Details,
+    DateTime OccurredAtUtc);
 
 public sealed record KycSubmissionStatus(Guid CaseId, string Status, DateTime SubmittedAtUtc, string? RejectionReason);
 

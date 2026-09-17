@@ -18,6 +18,13 @@ public sealed class KycController(KycSecurityService kycSecurityService) : Contr
         return Ok(await kycSecurityService.GetPendingCasesAsync(cancellationToken));
     }
 
+    [HttpGet("cases/history")]
+    public async Task<IActionResult> GetHistory(CancellationToken cancellationToken)
+    {
+        RequirePermission("Kyc.Verify");
+        return Ok(await kycSecurityService.GetHistoryAsync(cancellationToken));
+    }
+
     [HttpGet("cases/{kycCaseId:guid}/document")]
     public async Task<IActionResult> GetDocument(Guid kycCaseId, CancellationToken cancellationToken)
     {
