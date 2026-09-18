@@ -71,9 +71,12 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
     {
         var kycCase = await dbContext.KycCases.SingleOrDefaultAsync(item => item.Id == kycCaseId, cancellationToken)
             ?? throw new NotFoundException("KYC case not found.");
+        var customer = await dbContext.Customers.SingleOrDefaultAsync(item => item.Id == kycCase.CustomerId, cancellationToken)
+            ?? throw new NotFoundException("Customer not found.");
         if (verify) kycCase.Verify(reviewerId, DateTime.UtcNow.AddYears(3));
         else if (!string.IsNullOrWhiteSpace(rejectionReason)) kycCase.Reject(reviewerId, rejectionReason);
         else throw new ValidationException("A rejection reason is required.");
+        customer.Kyc?.SetDecision(verify ? KycStatus.Verified : KycStatus.Rejected, verify ? DateTime.UtcNow : null);
         dbContext.KycAuditEvents.Add(new KycAuditEvent(Guid.NewGuid(), kycCase.Id, verify ? "kyc.verified" : "kyc.rejected", reviewerId, verify ? "KYC approved." : rejectionReason!));
         await dbContext.SaveChangesAsync(cancellationToken);
     }

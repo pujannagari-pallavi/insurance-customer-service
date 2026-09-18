@@ -21,4 +21,10 @@ public sealed class KycProfile
     public KycStatus Status { get; private set; }
 
     public DateTime? VerifiedAtUtc { get; private set; }
+
+    public void SetDecision(KycStatus status, DateTime? verifiedAtUtc)
+    {
+        Status = status;
+        VerifiedAtUtc = verifiedAtUtc;
+    }
 }
