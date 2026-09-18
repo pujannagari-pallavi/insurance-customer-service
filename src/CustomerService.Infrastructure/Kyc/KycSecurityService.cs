@@ -115,10 +115,20 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
     }
 
     public Task<IReadOnlyList<KycCaseSummary>> GetPendingCasesAsync(CancellationToken cancellationToken) =>
+        GetCasesAsync(nameof(KycCaseStatus.PendingReview), cancellationToken);
+
+    public Task<IReadOnlyList<KycCaseSummary>> GetCasesAsync(string? status, CancellationToken cancellationToken)
+    {
+        var hasStatus = !string.IsNullOrWhiteSpace(status);
+        var parsedStatus = hasStatus && Enum.TryParse<KycCaseStatus>(status, true, out var requestedStatus)
+            ? requestedStatus
+            : KycCaseStatus.PendingReview;
+
+        return
         (from kycCase in dbContext.KycCases.AsNoTracking()
          join customer in dbContext.Customers.AsNoTracking() on kycCase.CustomerId equals customer.Id
          join document in dbContext.KycDocuments.AsNoTracking() on kycCase.Id equals document.KycCaseId
-         where kycCase.Status == KycCaseStatus.PendingReview
+         where !hasStatus || kycCase.Status == parsedStatus
          orderby kycCase.SubmittedAtUtc
          select new KycCaseSummary(
              kycCase.Id,
@@ -129,9 +139,11 @@ public sealed class KycSecurityService(CustomerDbContext dbContext, IConfigurati
              document.ContentType,
              document.Length,
              kycCase.SubmittedAtUtc,
-             kycCase.RiskScore))
+             kycCase.RiskScore,
+             kycCase.Status.ToString()))
         .ToListAsync(cancellationToken)
         .ContinueWith(task => (IReadOnlyList<KycCaseSummary>)task.Result, cancellationToken);
+    }
 
     public Task<IReadOnlyList<KycHistoryEntry>> GetHistoryAsync(CancellationToken cancellationToken) =>
         (from kycCase in dbContext.KycCases.AsNoTracking()
@@ -204,7 +216,8 @@ public sealed record KycCaseSummary(
     string ContentType,
     long SizeBytes,
     DateTime SubmittedAtUtc,
-    int RiskScore);
+    int RiskScore,
+    string Status);
 
 public sealed record KycHistoryEntry(
     Guid CaseId,

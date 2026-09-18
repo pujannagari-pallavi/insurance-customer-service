@@ -79,7 +79,9 @@ public sealed class CustomersController(
 
     private void EnsureOwnership(CustomerResponse customer)
     {
-        if (User.IsInRole("Admin") || customer.IdentityUserId == GetActorId())
+        if (User.IsInRole("Admin")
+            || User.HasClaim("permission", "Policy.Approve")
+            || customer.IdentityUserId == GetActorId())
         {
             return;
         }
